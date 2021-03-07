@@ -1748,6 +1748,9 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
             will be converted back to CSC prior to being returned, hence the
             preference of CSR.
 
+            If the degree is 0 and include_bias is True, the function will
+            return a single column matrix of the bias.
+
         Returns
         -------
         XP : {ndarray, sparse matrix} of shape (n_samples, NP)
@@ -1765,6 +1768,11 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
 
         if n_features != self.n_input_features_:
             raise ValueError("X shape does not match training shape")
+
+        if self.degree < 1 and not self.include_bias:
+            raise ValueError("Found polynomial feature(s) with degree %d without"
+                            " including bias while a minimum of 1 is required."
+                            % (self.degree))
 
         if sparse.isspmatrix_csr(X):
             if self.degree > 3:
@@ -1822,6 +1830,9 @@ class PolynomialFeatures(TransformerMixin, BaseEstimator):
                     current_col = 1
                 else:
                     current_col = 0
+
+                if self.degree == 0 and self.include_bias:
+                    return XP
 
                 # d = 0
                 XP[:, current_col:current_col + n_features] = X

@@ -290,6 +290,17 @@ def test_polynomial_features_csr_X_dim_edges(deg, dim, interaction_only):
     assert Xt_csr.dtype == Xt_dense.dtype
     assert_array_almost_equal(Xt_csr.A, Xt_dense)
 
+def test_polynomial_features_degree_zero():
+    # Degree 0 with include_bias = True should
+    # return a single column matrix of the bias
+    np.testing.assert_array_equal(PolynomialFeatures(degree=0,
+        include_bias=True).fit_transform(np.ones((10,1))),np.ones((10,1)))
+
+    # Degree 0 with include_bias = False should
+    # raise a ValueError instead of returning an empty matrix
+    with pytest.raises(ValueError):
+        PolynomialFeatures(degree=0,
+            include_bias=False).fit_transform(np.ones((10,1)))
 
 def test_raises_value_error_if_sample_weights_greater_than_1d():
     # Sample weights must be either scalar or 1D
