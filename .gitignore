@@ -80,3 +80,4 @@ sklearn/utils/_seq_dataset.pyx
 sklearn/utils/_seq_dataset.pxd
 sklearn/linear_model/_sag_fast.pyx
 venv/
+bugs.py
