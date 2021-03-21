@@ -34,7 +34,6 @@ from ._validation import _normalize_score_results
 from ..exceptions import NotFittedError
 from joblib import Parallel
 from ..utils import check_random_state
-from ..utils.random import sample_without_replacement
 from ..utils._tags import _safe_tags
 from ..utils.validation import indexable, check_is_fitted, _check_fit_params
 from ..utils.validation import _deprecate_positional_args
@@ -291,27 +290,17 @@ class ParameterSampler:
                     % (grid_size, self.n_iter, grid_size), UserWarning)
                 n_iter = grid_size
 
-            rand_sample_to_range = {}
-            for ith_dict in self.param_distributions:
+            rand_sample_to_range = { key: 0 for key in range(-1, len(self.param_distributions)) }
+            for i in range(len(self.param_distributions)):
                 combinations = 1
-                for key in ith_dict:
-                  combinations *= len(ith_dict[key])
-                print(combinations)
+                for key in self.param_distributions[i]:
+                  combinations *= len(self.param_distributions[i][key])
+                rand_sample_to_range[i] = combinations + rand_sample_to_range[i-1]
 
-            for i in sample_without_replacement(grid_size, n_iter,
-                                                random_state=rng):
-                # aa = random.randrange(0, len(self.param_distributions))
-
-                # if aa == 0:
-                #   bb = random.randrange(0, 30)
-                #   dd = param_grid[bb]
-                #   yield dd
-                # else:
-                #   bb = random.randrange(30, 150)
-                #   dd = param_grid[bb]
-                #   yield dd
-                yield param_grid[i]
-
+            for i in range(n_iter):
+              sample_dict = rng.randint(len(self.param_distributions))
+              sample_index = rng.randint(rand_sample_to_range[sample_dict-1], rand_sample_to_range[sample_dict])
+              yield param_grid[sample_index]
         else:
             print("\nin else statement\n")
             for _ in range(self.n_iter):
