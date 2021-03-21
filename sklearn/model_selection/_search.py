@@ -288,6 +288,8 @@ class ParameterSampler:
                     % (grid_size, self.n_iter, grid_size), UserWarning)
                 n_iter = grid_size
 
+            # Makes a dict where key represents the index of the param dict in param_distributions
+            # and value represents the range in where combinations of the values of the dict are in param_grid
             rand_sample_to_range = { key: 0 for key in range(-1, len(self.param_distributions)) }
             for i in range(len(self.param_distributions)):
                 combinations = 1
@@ -295,6 +297,7 @@ class ParameterSampler:
                   combinations *= len(self.param_distributions[i][key])
                 rand_sample_to_range[i] = combinations + rand_sample_to_range[i-1]
 
+            # Uniformly choose a dictionary and then choose a combination from that param from param_grid
             for i in range(n_iter):
               sample_dict = rng.randint(len(self.param_distributions))
               sample_index = rng.randint(rand_sample_to_range[sample_dict-1], rand_sample_to_range[sample_dict])
