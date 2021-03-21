@@ -367,6 +367,21 @@ def test_trivial_cv_results_attr():
     random_search.fit(X, y)
     assert hasattr(grid_search, "cv_results_")
 
+def test_param_distributions_unformily_chosen():
+    # Test that RandomizedSearchCV is uniformly choosing param dicts regardless of their list size
+    clf = MockClassifier()
+    iterations = 40
+    random_search_calls = 100
+    total_percent = 0
+    test_list = [{'foo_param': [0]}, {'foo_param': range(1, iterations)}]
+    # Get the average zero count
+    for i in range(random_search_calls):
+        random_search = RandomizedSearchCV(clf, test_list, n_iter=iterations, cv=3)
+        random_search.fit(X, y)
+        results = random_search.cv_results_['param_foo_param']
+        zero_count = list(results).count(0)
+        total_percent += (zero_count / iterations) * 100
+    assert total_percent / random_search_calls > 40.0, 'Smaller Dictionary is chosen atleast 40% of the time'
 
 def test_no_refit():
     # Test that GSCV can be used for model selection alone without refitting
