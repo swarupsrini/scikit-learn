@@ -302,7 +302,6 @@ class ParameterSampler:
               sample_index = rng.randint(rand_sample_to_range[sample_dict-1], rand_sample_to_range[sample_dict])
               yield param_grid[sample_index]
         else:
-            print("\nin else statement\n")
             for _ in range(self.n_iter):
                 dist = rng.choice(self.param_distributions)
                 # Always sort the keys of a dictionary, for reproducibility
