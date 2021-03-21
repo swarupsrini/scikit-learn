@@ -275,9 +275,7 @@ class ParameterSampler:
         # if all distributions are given as lists, we want to sample without
         # replacement
         if self._is_all_lists():
-            print("\nin if statement\n")
             # look up sampled parameter settings in parameter grid
-            print(self.param_distributions)
             param_grid = ParameterGrid(self.param_distributions)
             grid_size = len(param_grid)
             n_iter = self.n_iter
