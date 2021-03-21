@@ -276,7 +276,9 @@ class ParameterSampler:
         # if all distributions are given as lists, we want to sample without
         # replacement
         if self._is_all_lists():
+            print("\nin if statement\n")
             # look up sampled parameter settings in parameter grid
+            print(self.param_distributions)
             param_grid = ParameterGrid(self.param_distributions)
             grid_size = len(param_grid)
             n_iter = self.n_iter
@@ -288,11 +290,30 @@ class ParameterSampler:
                     'searches, use GridSearchCV.'
                     % (grid_size, self.n_iter, grid_size), UserWarning)
                 n_iter = grid_size
+
+            rand_sample_to_range = {}
+            for ith_dict in self.param_distributions:
+                combinations = 1
+                for key in ith_dict:
+                  combinations *= len(ith_dict[key])
+                print(combinations)
+
             for i in sample_without_replacement(grid_size, n_iter,
                                                 random_state=rng):
+                # aa = random.randrange(0, len(self.param_distributions))
+
+                # if aa == 0:
+                #   bb = random.randrange(0, 30)
+                #   dd = param_grid[bb]
+                #   yield dd
+                # else:
+                #   bb = random.randrange(30, 150)
+                #   dd = param_grid[bb]
+                #   yield dd
                 yield param_grid[i]
 
         else:
+            print("\nin else statement\n")
             for _ in range(self.n_iter):
                 dist = rng.choice(self.param_distributions)
                 # Always sort the keys of a dictionary, for reproducibility
