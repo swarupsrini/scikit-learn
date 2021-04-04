@@ -268,7 +268,6 @@ class TreeGrower:
         self.n_categorical_splits = 0
         self._intilialize_root(gradients, hessians, hessians_are_constant)
         self.n_nodes = 1
-        # self.interaction_constraints = interaction_constraints
 
     def _validate_parameters(self, X_binned, max_leaf_nodes, max_depth,
                              min_samples_leaf, min_gain_to_split,
