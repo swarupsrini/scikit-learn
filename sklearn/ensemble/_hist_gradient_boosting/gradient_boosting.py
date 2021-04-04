@@ -1019,6 +1019,10 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
         is enabled.
         Pass an int for reproducible output across multiple function calls.
         See :term:`Glossary <random_state>`.
+    interaction_constraints: list, default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another. This is passed on to the tree grower.
 
     Attributes
     ----------
@@ -1281,6 +1285,10 @@ class HistGradientBoostingClassifier(ClassifierMixin,
         is enabled.
         Pass an int for reproducible output across multiple function calls.
         See :term:`Glossary <random_state>`.
+    interaction_constraints: list, default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another. This is passed on to the tree grower.
 
     Attributes
     ----------

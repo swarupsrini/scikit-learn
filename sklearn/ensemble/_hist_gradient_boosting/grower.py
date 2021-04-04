@@ -176,6 +176,10 @@ class TreeGrower:
     shrinkage : float, default=1.
         The shrinkage parameter to apply to the leaves values, also known as
         learning rate.
+    interaction_constraints: list, default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another. This is passed on to the Splitter.
     """
 
     def __init__(self, X_binned, gradients, hessians, max_leaf_nodes=None,

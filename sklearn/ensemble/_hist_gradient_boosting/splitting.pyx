@@ -162,6 +162,10 @@ cdef class Splitter:
         be ignored.
     hessians_are_constant: bool, default is False
         Whether hessians are constant.
+    interaction_constraints: ndarray of int, shape (,n_features), default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another.
     """
     cdef public:
         const X_BINNED_DTYPE_C [::1, :] X_binned
@@ -211,7 +215,11 @@ cdef class Splitter:
         self.min_gain_to_split = min_gain_to_split
         self.hessians_are_constant = hessians_are_constant
 
-        # change interaction constraints to a correlation matrix structure
+        # Change interaction constraints to a 'correlation matrix' structure.
+        # E.g. this turns [[0, 1, 2], [2, 3]] into 
+        # [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
+        # This is slow, but allows us to quickly check if any feature is 
+        # allowed to interact with another.
         if interaction_constraints == None:
             self.interaction_constraints = None
         else:
@@ -225,7 +233,6 @@ cdef class Splitter:
                             if interaction_constraints[i][j] not in inter_temp[feature_idx]:
                                 inter_temp[feature_idx].append(interaction_constraints[i][j])
             self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
-            # print(np.asarray(self.interaction_constraints))
 
         # The partition array maps each sample index into the leaves of the
         # tree (a leaf in this context is a node that isn't splitted yet, not
@@ -502,6 +509,8 @@ cdef class Splitter:
                 split_infos[feature_idx].gain = -1
                 split_infos[feature_idx].is_categorical = is_categorical[feature_idx]
 
+                # if we've set invalid feature flag to 1 then set the gain to 
+                # -2 so we don't pick it over anything else with gain >= -1
                 if self.interaction_constraints != None and invalid_feature_flags[feature_idx] == 1:
                     split_infos[feature_idx].gain = -2
                     continue
@@ -544,6 +553,8 @@ cdef class Splitter:
                 split_infos)
             split_info = split_infos[best_feature_idx]
 
+            # Update interaction_constraints to note that we've selected
+            # best_feature_idx as the next feature to split on.
             if self.interaction_constraints != None:
                 for feature_idx in range(n_features):
                     is_in = 0
