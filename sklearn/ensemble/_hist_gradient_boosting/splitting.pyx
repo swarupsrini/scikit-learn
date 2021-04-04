@@ -212,33 +212,19 @@ cdef class Splitter:
         self.hessians_are_constant = hessians_are_constant
 
         # change interaction constraints to a correlation matrix structure
-        # self.interaction_constraints = np.full((self.n_features, self.n_features), -1, dtype=np.int32, order="F")
         if interaction_constraints == None:
             self.interaction_constraints = None
         else:
             inter_temp = [[] for _ in range(self.n_features)]
-            # print("given inter const")
-            # print(np.asarray(interaction_constraints))
-            # print(interaction_constraints.shape)
-            # best_feature_idx = 0
-            #       [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
-            # given [[0, 1, 2], [2, 3]], trim valid features
             for feature_idx in range(self.n_features):
                 for i in range(interaction_constraints.shape[0]):
-                    # print(np.asarray(interaction_constraints[i]))
-                    # print(feature_idx, feature_idx in interaction_constraints[i])
                     if feature_idx in interaction_constraints[i]:
                         for j in range(self.n_features):
                             if interaction_constraints[i][j] == -1:
                                 break
                             if interaction_constraints[i][j] not in inter_temp[feature_idx]:
                                 inter_temp[feature_idx].append(interaction_constraints[i][j])
-                                # print("appending", interaction_constraints[i][j], "to index", feature_idx)
-                                # print(inter_temp)
-            # print("inter temp")
-            # print(inter_temp)
             self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
-            # print("finished inter const")
             # print(np.asarray(self.interaction_constraints))
 
         # The partition array maps each sample index into the leaves of the
@@ -558,14 +544,7 @@ cdef class Splitter:
                 split_infos)
             split_info = split_infos[best_feature_idx]
 
-            # update valid features
-            # best_feature_idx = 0
-            #       [[1, 2], [0, 2], [0, 1, 3], [2]]
-            # given [[0, 1, 2], [2, 3]], trim valid features
             if self.interaction_constraints != None:
-                # printf("chosen feature %d\n", best_feature_idx)
-                # printf("gain %Lf\n", split_info.gain)
-                # printf("gain of 26 %Lf\n", split_infos[26].gain)
                 for feature_idx in range(n_features):
                     is_in = 0
                     for i in range(n_features):
@@ -576,7 +555,6 @@ cdef class Splitter:
                             is_in = 1
                     if is_in == 0:
                         invalid_feature_flags[feature_idx] = 1
-                        # printf("setting feature %d to 1\n", feature_idx)
 
         out = SplitInfo(
             split_info.gain,
