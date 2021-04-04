@@ -212,7 +212,6 @@ cdef class Splitter:
         self.hessians_are_constant = hessians_are_constant
 
         # change interaction constraints to a correlation matrix structure
-        # self.interaction_constraints = np.full((self.n_features, self.n_features), -1, dtype=np.int32, order="F")
         if interaction_constraints == None:
             self.interaction_constraints = None
         else:
