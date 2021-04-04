@@ -225,7 +225,6 @@ cdef class Splitter:
                             if interaction_constraints[i][j] not in inter_temp[feature_idx]:
                                 inter_temp[feature_idx].append(interaction_constraints[i][j])
             self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
-            # print("finished inter const")
             # print(np.asarray(self.interaction_constraints))
 
         # The partition array maps each sample index into the leaves of the
