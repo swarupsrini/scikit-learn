@@ -36,7 +36,7 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
                  categorical_features, monotonic_cst,
                  warm_start, early_stopping, scoring,
                  validation_fraction, n_iter_no_change, tol, verbose,
-                 random_state):
+                 random_state, interaction_constraints):
         self.loss = loss
         self.learning_rate = learning_rate
         self.max_iter = max_iter
@@ -55,6 +55,7 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
         self.tol = tol
         self.verbose = verbose
         self.random_state = random_state
+        self.interaction_constraints = interaction_constraints
 
     def _validate_parameters(self):
         """Validate parameters passed to __init__.
@@ -456,7 +457,8 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
                     max_depth=self.max_depth,
                     min_samples_leaf=self.min_samples_leaf,
                     l2_regularization=self.l2_regularization,
-                    shrinkage=self.learning_rate)
+                    shrinkage=self.learning_rate,
+                    interaction_constraints=self.interaction_constraints)
                 grower.grow()
 
                 acc_apply_split_time += grower.total_apply_split_time
@@ -1061,7 +1063,7 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
                  warm_start=False, early_stopping='auto',
                  scoring='loss', validation_fraction=0.1,
                  n_iter_no_change=10, tol=1e-7,
-                 verbose=0, random_state=None):
+                 verbose=0, random_state=None, interaction_constraints=None):
         super(HistGradientBoostingRegressor, self).__init__(
             loss=loss, learning_rate=learning_rate, max_iter=max_iter,
             max_leaf_nodes=max_leaf_nodes, max_depth=max_depth,
@@ -1073,7 +1075,8 @@ class HistGradientBoostingRegressor(RegressorMixin, BaseHistGradientBoosting):
             warm_start=warm_start, scoring=scoring,
             validation_fraction=validation_fraction,
             n_iter_no_change=n_iter_no_change, tol=tol, verbose=verbose,
-            random_state=random_state)
+            random_state=random_state,
+            interaction_constraints=interaction_constraints)
 
     def predict(self, X):
         """Predict values for X.
@@ -1324,7 +1327,7 @@ class HistGradientBoostingClassifier(ClassifierMixin,
                  categorical_features=None,  monotonic_cst=None,
                  warm_start=False, early_stopping='auto', scoring='loss',
                  validation_fraction=0.1, n_iter_no_change=10, tol=1e-7,
-                 verbose=0, random_state=None):
+                 verbose=0, random_state=None, interaction_constraints=None):
         super(HistGradientBoostingClassifier, self).__init__(
             loss=loss, learning_rate=learning_rate, max_iter=max_iter,
             max_leaf_nodes=max_leaf_nodes, max_depth=max_depth,
@@ -1336,7 +1339,8 @@ class HistGradientBoostingClassifier(ClassifierMixin,
             early_stopping=early_stopping, scoring=scoring,
             validation_fraction=validation_fraction,
             n_iter_no_change=n_iter_no_change, tol=tol, verbose=verbose,
-            random_state=random_state)
+            random_state=random_state,
+            interaction_constraints=interaction_constraints)
 
     def predict(self, X):
         """Predict classes for X.

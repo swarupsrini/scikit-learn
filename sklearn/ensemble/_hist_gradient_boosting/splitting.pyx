@@ -178,6 +178,9 @@ cdef class Splitter:
         unsigned int [::1] left_indices_buffer
         unsigned int [::1] right_indices_buffer
 
+        unsigned int [::1] invalid_feature_flags
+        signed int [::1, :] interaction_constraints
+
     def __init__(self,
                  const X_BINNED_DTYPE_C [::1, :] X_binned,
                  const unsigned int [::1] n_bins_non_missing,
@@ -185,6 +188,7 @@ cdef class Splitter:
                  const unsigned char [::1] has_missing_values,
                  const unsigned char [::1] is_categorical,
                  const signed char [::1] monotonic_cst,
+                 const signed int [::1, :] interaction_constraints,
                  Y_DTYPE_C l2_regularization,
                  Y_DTYPE_C min_hessian_to_split=1e-3,
                  unsigned int min_samples_leaf=20,
@@ -204,6 +208,35 @@ cdef class Splitter:
         self.min_gain_to_split = min_gain_to_split
         self.hessians_are_constant = hessians_are_constant
 
+        # change interaction constraints to a correlation matrix structure
+        # self.interaction_constraints = np.full((self.n_features, self.n_features), -1, dtype=np.int32, order="F")
+        inter_temp = [[] for _ in range(self.n_features)]
+        # print("given inter const")
+        # print(np.asarray(interaction_constraints))
+        # print(interaction_constraints.shape)
+        # best_feature_idx = 0
+        #       [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
+        # given [[0, 1, 2], [2, 3]], trim valid features
+        for feature_idx in range(self.n_features):
+            for i in range(interaction_constraints.shape[0]):
+                # print(np.asarray(interaction_constraints[i]))
+                # print(feature_idx, feature_idx in interaction_constraints[i])
+                if feature_idx in interaction_constraints[i]:
+                    for j in range(self.n_features):
+                        if interaction_constraints[i][j] == -1:
+                            break
+                        if interaction_constraints[i][j] not in inter_temp[feature_idx]:
+                            inter_temp[feature_idx].append(interaction_constraints[i][j])
+                            # print("appending", interaction_constraints[i][j], "to index", feature_idx)
+                            # print(inter_temp)
+        # print("inter temp")
+        # print(inter_temp)
+        self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
+        # print("finished inter const")
+        # print(np.asarray(self.interaction_constraints))
+
+        # for feature_idx in prange(n_features, schedule='static'):
+
         # The partition array maps each sample index into the leaves of the
         # tree (a leaf in this context is a node that isn't splitted yet, not
         # necessarily a 'finalized' leaf). Initially, the root contains all
@@ -217,6 +250,7 @@ cdef class Splitter:
         # buffers used in split_indices to support parallel splitting.
         self.left_indices_buffer = np.empty_like(self.partition)
         self.right_indices_buffer = np.empty_like(self.partition)
+        self.invalid_feature_flags = np.zeros(self.n_features, dtype=np.uint32)
 
     def split_indices(Splitter self, split_info, unsigned int [::1]
                       sample_indices):
@@ -456,6 +490,11 @@ cdef class Splitter:
             const unsigned char [::1] has_missing_values = self.has_missing_values
             const unsigned char [::1] is_categorical = self.is_categorical
             const signed char [::1] monotonic_cst = self.monotonic_cst
+            int i
+            int is_in
+            signed int val
+            unsigned int [::1] invalid_feature_flags = self.invalid_feature_flags
+            signed int [::1, :] interaction_constraints = self.interaction_constraints
 
         with nogil:
 
@@ -472,6 +511,9 @@ cdef class Splitter:
                 # node into a leaf.
                 split_infos[feature_idx].gain = -1
                 split_infos[feature_idx].is_categorical = is_categorical[feature_idx]
+
+                if invalid_feature_flags[feature_idx] == 1:
+                    continue
 
                 if is_categorical[feature_idx]:
                     self._find_best_bin_to_split_category(
@@ -510,6 +552,21 @@ cdef class Splitter:
             best_feature_idx = self._find_best_feature_to_split_helper(
                 split_infos)
             split_info = split_infos[best_feature_idx]
+
+            # update valid features
+            # best_feature_idx = 0
+            #       [[1, 2], [0, 2], [0, 1, 3], [2]]
+            # given [[0, 1, 2], [2, 3]], trim valid features
+            for feature_idx in prange(n_features, schedule='static'):
+                is_in = 0
+                for i in prange(n_features, schedule='static'):
+                    val = interaction_constraints[best_feature_idx][i]
+                    if val == -1:
+                        break
+                    if val == feature_idx:
+                        is_in = 1
+                if is_in == 0:
+                    invalid_feature_flags[feature_idx] = 1
 
         out = SplitInfo(
             split_info.gain,
@@ -839,7 +896,7 @@ cdef class Splitter:
         # other category. The low-support categories will always be mapped to
         # the right child. We scan the sorted categories array from left to
         # right and from right to left, and we stop at the middle.
-        
+
         # Considering ordered categories A B C D, with E being a low-support
         # category: A B C D
         #              ^

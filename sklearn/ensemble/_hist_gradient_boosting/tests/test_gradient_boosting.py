@@ -1006,3 +1006,13 @@ def test_loss_least_squares_deprecated():
     est2 = HistGradientBoostingRegressor(loss="squared_error", random_state=0)
     est2.fit(X, y)
     assert_allclose(est1.predict(X), est2.predict(X))
+
+
+@pytest.mark.parametrize('Est', (HistGradientBoostingClassifier,
+                                 HistGradientBoostingRegressor))
+def test_interaction_constraints(Est):
+    X = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+    y = np.array([1, 0])
+    est = Est(interaction_constraints=[[0, 1, 2], [2, 3]])
+    est.fit(X, y)
+    # test some stuff

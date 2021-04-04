@@ -183,7 +183,7 @@ class TreeGrower:
                  n_bins=256, n_bins_non_missing=None, has_missing_values=False,
                  is_categorical=None, monotonic_cst=None,
                  l2_regularization=0., min_hessian_to_split=1e-3,
-                 shrinkage=1.):
+                 shrinkage=1., interaction_constraints=None):
 
         self._validate_parameters(X_binned, max_leaf_nodes, max_depth,
                                   min_samples_leaf, min_gain_to_split,
@@ -240,9 +240,11 @@ class TreeGrower:
         self.histogram_builder = HistogramBuilder(
             X_binned, n_bins, gradients, hessians, hessians_are_constant)
         missing_values_bin_idx = n_bins - 1
+        pad = X_binned.shape[1]
         self.splitter = Splitter(
             X_binned, n_bins_non_missing, missing_values_bin_idx,
             has_missing_values, is_categorical, monotonic_cst,
+            np.array([i + [-1]*(pad-len(i)) for i in interaction_constraints], dtype=np.int32, order="F"),
             l2_regularization, min_hessian_to_split,
             min_samples_leaf, min_gain_to_split, hessians_are_constant)
         self.n_bins_non_missing = n_bins_non_missing
@@ -266,6 +268,7 @@ class TreeGrower:
         self.n_categorical_splits = 0
         self._intilialize_root(gradients, hessians, hessians_are_constant)
         self.n_nodes = 1
+        # self.interaction_constraints = interaction_constraints
 
     def _validate_parameters(self, X_binned, max_leaf_nodes, max_depth,
                              min_samples_leaf, min_gain_to_split,
