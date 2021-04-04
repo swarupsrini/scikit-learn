@@ -176,6 +176,10 @@ class TreeGrower:
     shrinkage : float, default=1.
         The shrinkage parameter to apply to the leaves values, also known as
         learning rate.
+    interaction_constraints: list, default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another. This is passed on to the Splitter.
     """
 
     def __init__(self, X_binned, gradients, hessians, max_leaf_nodes=None,
@@ -183,7 +187,7 @@ class TreeGrower:
                  n_bins=256, n_bins_non_missing=None, has_missing_values=False,
                  is_categorical=None, monotonic_cst=None,
                  l2_regularization=0., min_hessian_to_split=1e-3,
-                 shrinkage=1.):
+                 shrinkage=1., interaction_constraints=None):
 
         self._validate_parameters(X_binned, max_leaf_nodes, max_depth,
                                   min_samples_leaf, min_gain_to_split,
@@ -240,11 +244,13 @@ class TreeGrower:
         self.histogram_builder = HistogramBuilder(
             X_binned, n_bins, gradients, hessians, hessians_are_constant)
         missing_values_bin_idx = n_bins - 1
+        pad = X_binned.shape[1]
         self.splitter = Splitter(
             X_binned, n_bins_non_missing, missing_values_bin_idx,
             has_missing_values, is_categorical, monotonic_cst,
             l2_regularization, min_hessian_to_split,
-            min_samples_leaf, min_gain_to_split, hessians_are_constant)
+            min_samples_leaf, min_gain_to_split, hessians_are_constant,
+            None if interaction_constraints == None else np.array([i + [-1]*(pad-len(i)) for i in interaction_constraints], dtype=np.int32, order="F"))
         self.n_bins_non_missing = n_bins_non_missing
         self.missing_values_bin_idx = missing_values_bin_idx
         self.max_leaf_nodes = max_leaf_nodes

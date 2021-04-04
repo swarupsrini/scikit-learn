@@ -36,6 +36,9 @@ from ._bitset cimport in_bitset
 np.import_array()
 
 
+from libc.stdio cimport printf
+
+
 cdef struct split_info_struct:
     # Same as the SplitInfo class, but we need a C struct to use it in the
     # nogil sections and to use in arrays.
@@ -159,6 +162,10 @@ cdef class Splitter:
         be ignored.
     hessians_are_constant: bool, default is False
         Whether hessians are constant.
+    interaction_constraints: ndarray of int, shape (,n_features), default=None
+        A 2D list specifying the interaction constraints. Each list in 
+        interaction_constraints specifies a set of features that are allowed 
+        to interact with one another.
     """
     cdef public:
         const X_BINNED_DTYPE_C [::1, :] X_binned
@@ -178,6 +185,9 @@ cdef class Splitter:
         unsigned int [::1] left_indices_buffer
         unsigned int [::1] right_indices_buffer
 
+        unsigned int [::1] invalid_feature_flags
+        signed int [::1, :] interaction_constraints
+
     def __init__(self,
                  const X_BINNED_DTYPE_C [::1, :] X_binned,
                  const unsigned int [::1] n_bins_non_missing,
@@ -189,7 +199,8 @@ cdef class Splitter:
                  Y_DTYPE_C min_hessian_to_split=1e-3,
                  unsigned int min_samples_leaf=20,
                  Y_DTYPE_C min_gain_to_split=0.,
-                 unsigned char hessians_are_constant=False):
+                 unsigned char hessians_are_constant=False,
+                 const signed int [::1, :] interaction_constraints=None):
 
         self.X_binned = X_binned
         self.n_features = X_binned.shape[1]
@@ -204,6 +215,25 @@ cdef class Splitter:
         self.min_gain_to_split = min_gain_to_split
         self.hessians_are_constant = hessians_are_constant
 
+        # Change interaction constraints to a 'correlation matrix' structure.
+        # E.g. this turns [[0, 1, 2], [2, 3]] into 
+        # [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
+        # This is slow, but allows us to quickly check if any feature is 
+        # allowed to interact with another.
+        if interaction_constraints == None:
+            self.interaction_constraints = None
+        else:
+            inter_temp = [[] for _ in range(self.n_features)]
+            for feature_idx in range(self.n_features):
+                for i in range(interaction_constraints.shape[0]):
+                    if feature_idx in interaction_constraints[i]:
+                        for j in range(self.n_features):
+                            if interaction_constraints[i][j] == -1:
+                                break
+                            if interaction_constraints[i][j] not in inter_temp[feature_idx]:
+                                inter_temp[feature_idx].append(interaction_constraints[i][j])
+            self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
+
         # The partition array maps each sample index into the leaves of the
         # tree (a leaf in this context is a node that isn't splitted yet, not
         # necessarily a 'finalized' leaf). Initially, the root contains all
@@ -217,6 +247,7 @@ cdef class Splitter:
         # buffers used in split_indices to support parallel splitting.
         self.left_indices_buffer = np.empty_like(self.partition)
         self.right_indices_buffer = np.empty_like(self.partition)
+        self.invalid_feature_flags = np.zeros(self.n_features, dtype=np.uint32)
 
     def split_indices(Splitter self, split_info, unsigned int [::1]
                       sample_indices):
@@ -456,6 +487,11 @@ cdef class Splitter:
             const unsigned char [::1] has_missing_values = self.has_missing_values
             const unsigned char [::1] is_categorical = self.is_categorical
             const signed char [::1] monotonic_cst = self.monotonic_cst
+            int i
+            int is_in
+            signed int val
+            unsigned int [::1] invalid_feature_flags = self.invalid_feature_flags
+            signed int [::1, :] interaction_constraints = self.interaction_constraints
 
         with nogil:
 
@@ -472,6 +508,12 @@ cdef class Splitter:
                 # node into a leaf.
                 split_infos[feature_idx].gain = -1
                 split_infos[feature_idx].is_categorical = is_categorical[feature_idx]
+
+                # if we've set invalid feature flag to 1 then set the gain to 
+                # -2 so we don't pick it over anything else with gain >= -1
+                if self.interaction_constraints != None and invalid_feature_flags[feature_idx] == 1:
+                    split_infos[feature_idx].gain = -2
+                    continue
 
                 if is_categorical[feature_idx]:
                     self._find_best_bin_to_split_category(
@@ -510,6 +552,20 @@ cdef class Splitter:
             best_feature_idx = self._find_best_feature_to_split_helper(
                 split_infos)
             split_info = split_infos[best_feature_idx]
+
+            # Update interaction_constraints to note that we've selected
+            # best_feature_idx as the next feature to split on.
+            if self.interaction_constraints != None:
+                for feature_idx in range(n_features):
+                    is_in = 0
+                    for i in range(n_features):
+                        val = interaction_constraints[best_feature_idx][i]
+                        if val == -1:
+                            break
+                        if val == feature_idx:
+                            is_in = 1
+                    if is_in == 0:
+                        invalid_feature_flags[feature_idx] = 1
 
         out = SplitInfo(
             split_info.gain,
@@ -839,7 +895,7 @@ cdef class Splitter:
         # other category. The low-support categories will always be mapped to
         # the right child. We scan the sorted categories array from left to
         # right and from right to left, and we stop at the middle.
-        
+
         # Considering ordered categories A B C D, with E being a low-support
         # category: A B C D
         #              ^
