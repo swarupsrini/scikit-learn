@@ -545,9 +545,6 @@ cdef class Splitter:
             split_info = split_infos[best_feature_idx]
 
             if self.interaction_constraints != None:
-                # printf("chosen feature %d\n", best_feature_idx)
-                # printf("gain %Lf\n", split_info.gain)
-                # printf("gain of 26 %Lf\n", split_infos[26].gain)
                 for feature_idx in range(n_features):
                     is_in = 0
                     for i in range(n_features):
