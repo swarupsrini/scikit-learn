@@ -555,7 +555,6 @@ cdef class Splitter:
                             is_in = 1
                     if is_in == 0:
                         invalid_feature_flags[feature_idx] = 1
-                        # printf("setting feature %d to 1\n", feature_idx)
 
         out = SplitInfo(
             split_info.gain,
