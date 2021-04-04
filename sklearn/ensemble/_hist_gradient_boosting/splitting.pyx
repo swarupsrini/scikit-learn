@@ -216,12 +216,6 @@ cdef class Splitter:
             self.interaction_constraints = None
         else:
             inter_temp = [[] for _ in range(self.n_features)]
-            # print("given inter const")
-            # print(np.asarray(interaction_constraints))
-            # print(interaction_constraints.shape)
-            # best_feature_idx = 0
-            #       [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
-            # given [[0, 1, 2], [2, 3]], trim valid features
             for feature_idx in range(self.n_features):
                 for i in range(interaction_constraints.shape[0]):
                     # print(np.asarray(interaction_constraints[i]))
