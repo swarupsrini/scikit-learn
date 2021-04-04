@@ -1030,8 +1030,6 @@ def test_interaction_constraints_classification():
     rng = np.random.RandomState(0)
     n_samples = 10000
     n_features = 10
-    # X, y = make_regression(n_samples=n_samples, n_features=n_features,
-    #                            n_informative=n_features, random_state=rng)
     # check no constraints gives us same result as constraint with all features
     X, y = make_classification(n_samples=n_samples, n_features=n_features,
                                n_informative=n_features, n_redundant=0,
