@@ -13,7 +13,8 @@ from ...utils import check_random_state, resample
 from ...utils.validation import (check_is_fitted,
                                  check_consistent_length,
                                  _check_sample_weight,
-                                 _deprecate_positional_args)
+                                 _deprecate_positional_args,
+                                 check_array)
 from ...utils.multiclass import check_classification_targets
 from ...metrics import check_scoring
 from ...model_selection import train_test_split
@@ -97,6 +98,10 @@ class BaseHistGradientBoosting(BaseEstimator, ABC):
                 'monotonic constraints are not supported for '
                 'multiclass classification.'
                 )
+        if self.interaction_constraints:
+          if not isinstance(self.interaction_constraints, list):
+            raise ValueError("Interaction constraints must be a list.")
+          check_array(self.interaction_constraints)
 
     def _check_categories(self, X):
         """Check and validate categorical features in X

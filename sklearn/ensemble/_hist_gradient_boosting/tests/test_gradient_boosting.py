@@ -8,7 +8,7 @@ from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.base import clone, BaseEstimator, TransformerMixin
 from sklearn.base import is_regressor
 from sklearn.pipeline import make_pipeline
-from sklearn.metrics import mean_poisson_deviance
+from sklearn.metrics import mean_poisson_deviance, accuracy_score
 from sklearn.dummy import DummyRegressor
 from sklearn.exceptions import NotFittedError
 from sklearn.compose import make_column_transformer
@@ -1010,9 +1010,40 @@ def test_loss_least_squares_deprecated():
 
 @pytest.mark.parametrize('Est', (HistGradientBoostingClassifier,
                                  HistGradientBoostingRegressor))
-def test_interaction_constraints(Est):
+def test_invalid_interaction_constraints(Est):
     X = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
     y = np.array([1, 0])
-    est = Est(interaction_constraints=[[0, 1, 2], [2, 3]])
+    with pytest.raises(ValueError, match="Interaction constraints must be a list."):
+      Est(interaction_constraints=1).fit(X, y)
+    with pytest.raises(ValueError):
+      Est(interaction_constraints=[1,2,3]).fit(X, y)
+
+@pytest.mark.parametrize('Est', (HistGradientBoostingClassifier,
+                                 HistGradientBoostingRegressor))
+def test_without_interaction_constraints_no_error(Est):
+    X = np.array([[1, 2, 3, 4], [5, 6, 7, 8]])
+    y = np.array([1, 0])
+    est = Est()
     est.fit(X, y)
-    # test some stuff
+
+def test_interaction_constraints_classification():
+    rng = np.random.RandomState(0)
+    n_samples = 10000
+    n_features = 10
+    # X, y = make_regression(n_samples=n_samples, n_features=n_features,
+    #                            n_informative=n_features, random_state=rng)
+    # check no constraints gives us same result as constraint with all features
+    X, y = make_classification(n_samples=n_samples, n_features=n_features,
+                               n_informative=n_features, n_redundant=0,
+                               n_repeated=0, random_state=rng)
+    pred1 = HistGradientBoostingClassifier().fit(X, y).predict(X)
+    pred2 = HistGradientBoostingClassifier(interaction_constraints=[list(range(n_features))]).fit(X, y).predict(X)
+    assert_allclose(pred1, pred2)
+    # constraints with not all features must still work
+    HistGradientBoostingClassifier(interaction_constraints=[[1]]).fit(X, y).predict(X)
+    # two constraints with half-half features reduces accuracy
+    pred3 = HistGradientBoostingClassifier(interaction_constraints=[list(range(n_features//2)), list(range(n_features//2, n_features))]).fit(X, y).predict(X)
+    assert accuracy_score(y, pred1) > accuracy_score(y, pred3)
+    # constraints with all single features reduces accuracy more
+    pred4 = HistGradientBoostingClassifier(interaction_constraints=[[1]]).fit(X, y).predict(X)
+    assert accuracy_score(y, pred1) > accuracy_score(y, pred4)

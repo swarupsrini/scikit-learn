@@ -36,6 +36,9 @@ from ._bitset cimport in_bitset
 np.import_array()
 
 
+from libc.stdio cimport printf
+
+
 cdef struct split_info_struct:
     # Same as the SplitInfo class, but we need a C struct to use it in the
     # nogil sections and to use in arrays.
@@ -188,12 +191,12 @@ cdef class Splitter:
                  const unsigned char [::1] has_missing_values,
                  const unsigned char [::1] is_categorical,
                  const signed char [::1] monotonic_cst,
-                 const signed int [::1, :] interaction_constraints,
                  Y_DTYPE_C l2_regularization,
                  Y_DTYPE_C min_hessian_to_split=1e-3,
                  unsigned int min_samples_leaf=20,
                  Y_DTYPE_C min_gain_to_split=0.,
-                 unsigned char hessians_are_constant=False):
+                 unsigned char hessians_are_constant=False,
+                 const signed int [::1, :] interaction_constraints=None):
 
         self.X_binned = X_binned
         self.n_features = X_binned.shape[1]
@@ -210,32 +213,33 @@ cdef class Splitter:
 
         # change interaction constraints to a correlation matrix structure
         # self.interaction_constraints = np.full((self.n_features, self.n_features), -1, dtype=np.int32, order="F")
-        inter_temp = [[] for _ in range(self.n_features)]
-        # print("given inter const")
-        # print(np.asarray(interaction_constraints))
-        # print(interaction_constraints.shape)
-        # best_feature_idx = 0
-        #       [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
-        # given [[0, 1, 2], [2, 3]], trim valid features
-        for feature_idx in range(self.n_features):
-            for i in range(interaction_constraints.shape[0]):
-                # print(np.asarray(interaction_constraints[i]))
-                # print(feature_idx, feature_idx in interaction_constraints[i])
-                if feature_idx in interaction_constraints[i]:
-                    for j in range(self.n_features):
-                        if interaction_constraints[i][j] == -1:
-                            break
-                        if interaction_constraints[i][j] not in inter_temp[feature_idx]:
-                            inter_temp[feature_idx].append(interaction_constraints[i][j])
-                            # print("appending", interaction_constraints[i][j], "to index", feature_idx)
-                            # print(inter_temp)
-        # print("inter temp")
-        # print(inter_temp)
-        self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
-        # print("finished inter const")
-        # print(np.asarray(self.interaction_constraints))
-
-        # for feature_idx in prange(n_features, schedule='static'):
+        if interaction_constraints == None:
+            self.interaction_constraints = None
+        else:
+            inter_temp = [[] for _ in range(self.n_features)]
+            # print("given inter const")
+            # print(np.asarray(interaction_constraints))
+            # print(interaction_constraints.shape)
+            # best_feature_idx = 0
+            #       [[0, 1, 2], [0, 1, 2], [0, 1, 2, 3], [2, 3]]
+            # given [[0, 1, 2], [2, 3]], trim valid features
+            for feature_idx in range(self.n_features):
+                for i in range(interaction_constraints.shape[0]):
+                    # print(np.asarray(interaction_constraints[i]))
+                    # print(feature_idx, feature_idx in interaction_constraints[i])
+                    if feature_idx in interaction_constraints[i]:
+                        for j in range(self.n_features):
+                            if interaction_constraints[i][j] == -1:
+                                break
+                            if interaction_constraints[i][j] not in inter_temp[feature_idx]:
+                                inter_temp[feature_idx].append(interaction_constraints[i][j])
+                                # print("appending", interaction_constraints[i][j], "to index", feature_idx)
+                                # print(inter_temp)
+            # print("inter temp")
+            # print(inter_temp)
+            self.interaction_constraints = np.array([i + [-1]*(self.n_features-len(i)) for i in inter_temp], dtype=np.int32, order="F")
+            # print("finished inter const")
+            # print(np.asarray(self.interaction_constraints))
 
         # The partition array maps each sample index into the leaves of the
         # tree (a leaf in this context is a node that isn't splitted yet, not
@@ -512,7 +516,8 @@ cdef class Splitter:
                 split_infos[feature_idx].gain = -1
                 split_infos[feature_idx].is_categorical = is_categorical[feature_idx]
 
-                if invalid_feature_flags[feature_idx] == 1:
+                if self.interaction_constraints != None and invalid_feature_flags[feature_idx] == 1:
+                    split_infos[feature_idx].gain = -2
                     continue
 
                 if is_categorical[feature_idx]:
@@ -557,16 +562,21 @@ cdef class Splitter:
             # best_feature_idx = 0
             #       [[1, 2], [0, 2], [0, 1, 3], [2]]
             # given [[0, 1, 2], [2, 3]], trim valid features
-            for feature_idx in prange(n_features, schedule='static'):
-                is_in = 0
-                for i in prange(n_features, schedule='static'):
-                    val = interaction_constraints[best_feature_idx][i]
-                    if val == -1:
-                        break
-                    if val == feature_idx:
-                        is_in = 1
-                if is_in == 0:
-                    invalid_feature_flags[feature_idx] = 1
+            if self.interaction_constraints != None:
+                # printf("chosen feature %d\n", best_feature_idx)
+                # printf("gain %Lf\n", split_info.gain)
+                # printf("gain of 26 %Lf\n", split_infos[26].gain)
+                for feature_idx in range(n_features):
+                    is_in = 0
+                    for i in range(n_features):
+                        val = interaction_constraints[best_feature_idx][i]
+                        if val == -1:
+                            break
+                        if val == feature_idx:
+                            is_in = 1
+                    if is_in == 0:
+                        invalid_feature_flags[feature_idx] = 1
+                        # printf("setting feature %d to 1\n", feature_idx)
 
         out = SplitInfo(
             split_info.gain,
