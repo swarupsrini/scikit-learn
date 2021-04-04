@@ -218,8 +218,6 @@ cdef class Splitter:
             inter_temp = [[] for _ in range(self.n_features)]
             for feature_idx in range(self.n_features):
                 for i in range(interaction_constraints.shape[0]):
-                    # print(np.asarray(interaction_constraints[i]))
-                    # print(feature_idx, feature_idx in interaction_constraints[i])
                     if feature_idx in interaction_constraints[i]:
                         for j in range(self.n_features):
                             if interaction_constraints[i][j] == -1:
