@@ -544,10 +544,6 @@ cdef class Splitter:
                 split_infos)
             split_info = split_infos[best_feature_idx]
 
-            # update valid features
-            # best_feature_idx = 0
-            #       [[1, 2], [0, 2], [0, 1, 3], [2]]
-            # given [[0, 1, 2], [2, 3]], trim valid features
             if self.interaction_constraints != None:
                 # printf("chosen feature %d\n", best_feature_idx)
                 # printf("gain %Lf\n", split_info.gain)
